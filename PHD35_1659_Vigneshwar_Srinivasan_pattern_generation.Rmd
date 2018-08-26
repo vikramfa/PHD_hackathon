@@ -1,0 +1,279 @@
+---
+title: "End term Hackathon - Patterns/Rules Generation"
+author: "Vigneshwar Srinivasan "
+output:
+  html_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+
+
+#Clear working space
+```{r}
+
+rm(list = ls(all=TRUE))
+
+```
+
+# Agenda 
+
+* Get the data
+
+* Data Pre-processing
+
+* Build a model
+
+* Predictions
+
+* Communication
+
+# Reading & Understanding the Data
+
+## Data Domain and Format
+
+## Read the Data with loading of all packages
+
+Ensure the dataset is located in current working directory, else you can change your working directory using the "setwd()" function.
+Loading all reqired working packages
+
+```{r}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(grid)
+library(DMwR)
+library(stats)
+library(arm)
+library(MASS)
+library(car)
+library(corrplot)
+library(ROCR)
+library(gplots)
+library(corrplot)
+
+getwd()
+
+accident_data1 <-read.csv(file = "Train.csv")
+collision_data <-read.csv("NumberOfvehiclesbyCollosion.csv")
+base_data <-read.csv("Base_Vehicle_Data.csv")
+
+```
+
+## Understand the data
+
+* Data aggregation and recast
+
+```{r}
+library(reshape2)
+new_data <-base_data[,c(1,2,3)]
+head(new_data)
+require(reshape2)
+new_base_data <-dcast(new_data,Collision.Reference.No. ~ Vehicle.Type, value.var= "Vehicle.Reference.No", fun.aggregate = length)
+head(new_base_data)
+
+```
+
+#Merging all datasets
+
+```{r}
+head(base_data)
+head(new_base_data)
+head(accident_data1)
+str(accident_data1)
+head(collision_data)
+
+base_data_altered <- base_data[,!colnames(base_data) %in% c("Vehicle.Type","Vehicle.Reference.No")]
+head(base_data_altered)
+
+accident_data_1 <-merge(new_base_data, accident_data, by = "Collision.Reference.No.")
+accident_data_2 <-merge(accident_data_1, collision_data, by = "Collision.Reference.No.")
+accident_data_final <-merge(accident_data_2, base_data_altered, by = "Collision.Reference.No.")
+dim(accident_data_final)
+
+```
+
+
+## Data Description
+
+Collision Severity - Target variable 
+
+## Understand the data
+
+* Use the str() function to get the dimensions and types of attributes in the dataset
+
+```{r}
+
+str(accident_data_final)
+
+View(accident_data_final)
+
+```
+
+
+* Use the summary() function to understand the distribution of variables in the dataset
+
+```{r}
+
+summary(accident_data_final)
+
+```
+
+* Use the head() and tail() functions to get a look at the data
+
+```{r}
+
+head(accident_data_final)
+
+```
+
+
+# Data Pre-processing
+
+## Missing Values
+
+* Check the number of missing values in the data frame and correlation plot between the independent variables
+
+```{r}
+
+colSums(is.na(accident_data_final))
+
+table(colSums(is.na(accident_data_final)))
+
+```
+
+##Data pre-process
+
+* Factor conversion
+
+```{r}
+
+accident_data_final$Collision.Severity <- as.factor(as.character(accident_data_final$Collision.Severity))
+accident_data_final$Weekday.of.Collision <- as.factor(as.character(accident_data_final$Weekday.of.Collision))
+accident_data_final$Day.of.Collision <- as.factor(as.character(accident_data_final$Day.of.Collision))
+accident_data_final$Month.of.Collision <- as.factor(as.character(accident_data_final$Month.of.Collision))
+accident_data_final$Hour.of.Collision..24.hour. <- as.factor(as.character(accident_data_final$Hour.of.Collision..24.hour.))
+accident_data_final$Carriageway.Type <- as.factor(as.character(accident_data_final$Carriageway.Type))
+accident_data_final$Junction.Detail <- as.factor(as.character(accident_data_final$Junction.Detail))
+accident_data_final$Junction.Control <- as.factor(as.character(accident_data_final$Junction.Control))
+accident_data_final$Pedestrian.Crossing....Human.Control <- as.factor(as.character(accident_data_final$Pedestrian.Crossing....Human.Control))
+accident_data_final$Pedestrian.Crossing....Physical.Control <- as.factor(as.character(accident_data_final$Pedestrian.Crossing....Physical.Control))
+
+accident_data_final$Light.Conditions <- as.factor(as.character(accident_data_final$Light.Conditions))
+accident_data_final$Weather.Conditions <- as.factor(as.character(accident_data_final$Weather.Conditions))
+accident_data_final$Road.Surface.Conditions <- as.factor(as.character(accident_data_final$Road.Surface.Conditions))
+accident_data_final$Special.Conditions.at.Site <- as.factor(as.character(accident_data_final$Special.Conditions.at.Site))
+accident_data_final$Number.of.Vehicles <- as.factor(as.character(accident_data_final$Number.of.Vehicles))
+accident_data_final$Towing.and.Articulation <- as.factor(as.character(accident_data_final$Towing.and.Articulation))
+accident_data_final$Vehicle.Manoeuvre <- as.factor(as.character(accident_data_final$Vehicle.Manoeuvre))
+accident_data_final$Junction.Location.of.Vehicle.at.Time.of.Impact <- as.factor(as.character(accident_data_final$Junction.Location.of.Vehicle.at.Time.of.Impact))
+accident_data_final$Skidding...Overturning <- as.factor(as.character(accident_data_final$Skidding...Overturning))
+accident_data_final$First.Object.Hit.in.Carriageway <- as.factor(as.character(accident_data_final$First.Object.Hit.in.Carriageway))
+accident_data_final$Vehicle.Leaving.Carriageway <- as.factor(as.character(accident_data_final$Vehicle.Leaving.Carriageway))
+accident_data_final$First.Object.Hit.off.Carriageway <- as.factor(as.character(accident_data_final$First.Object.Hit.off.Carriageway))
+accident_data_final$First.Point.of.Impact <- as.factor(as.character(accident_data_final$First.Point.of.Impact))
+accident_data_final$Sex.of.Driver <- as.factor(as.character(accident_data_final$Sex.of.Driver))
+accident_data_final$Hit.and.Run <- as.factor(as.character(accident_data_final$Hit.and.Run))
+accident_data_final$Foreign.Registered.Vehicle <- as.factor(as.character(accident_data_final$Foreign.Registered.Vehicle))
+accident_data_final$Towing.and.Articulation <- as.factor(as.character(accident_data_final$Towing.and.Articulation))
+
+str(accident_data_final)
+
+```
+
+
+#New Data Structure
+```{r}
+
+colSums(is.na(accident_data_final))
+
+library("imputeMissings")
+accident_data_fin1 <-compute(accident_data_final, method = "median/mode" )
+accident_data_fin <-impute(accident_data_final, object = NULL, method = "median/mode", flag = FALSE )
+
+colSums(is.na(accident_data_final))
+
+```
+
+
+## 
+
+* Scaling the  data
+
+```{r}
+
+library(lattice)
+library(ggplot2)
+library(caret)
+std_model <-preProcess(accident_data_fin[, !names(accident_data_fin) %in% c("Collision.Severity")], method = c("center", "scale"))
+accident_data_fin[,!names(accident_data_fin) %in% c("Collision.Severity")] <- predict(object = std_model, newdata = accident_data_fin[, !names(accident_data_fin) %in% c("Collision.Severity")])
+
+accident_data_fin <- accident_data_fin[,!colnames(accident_data_fin) %in% c("Collision.Reference.No")]
+
+```
+#Generatign the rules only for the Collision.Severity (severity case) alone as of now
+
+# Decision Tree Building
+
+
+### Data transformation with Train/Test Split
+
+
+```{r}
+set.seed(786)
+library(lattice)
+library(ggplot2)
+library(caret)
+train_rows <-createDataPartition(accident_data_fin$Collision.Severity, p = 0.7, list = FALSE)
+train_data <-accident_data_fin[train_rows,]
+
+test_data <-accident_data_fin[-train_rows,]
+
+
+```
+
+##Decision Tree
+
+```{r}
+library(C50)
+c5_tree <- C5.0(Collision.Severity ~ . , train_data)
+
+c5_rules <- C5.0(Collision.Severity ~ . , train_data, rules = T)
+
+```
+
+## Variable importance in trees
+
+```{r}
+C5imp(c5_tree, metric = "usage")
+```
+
+
+#Rules from trees
+```{r}
+summary(c5_rules)
+
+```
+
+
+## Prediction on test data
+
+```{r}
+preds <- predict(c5_tree, test_data)
+
+```
+
+
+## Model accuracy
+
+
+```{r}
+library(caret)
+
+confusionMatrix(preds, test_data$Collision.Severity)
+
+```
+
+
+
+
